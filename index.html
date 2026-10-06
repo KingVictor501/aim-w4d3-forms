@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Registration</title>
+  <style>
+    :root {
+      --bg: #0F0D0E;
+      --surface: #1A1718;
+      --surface-2: #231F20;
+      --text: #F9F4DA;
+      --muted: rgba(249, 244, 218, 0.62);
+      --border: rgba(249, 244, 218, 0.16);
+      --amber: #FCBA28;
+      --green: #0BA95B;
+      --pink: #F38BA3;
+      --radius: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.5;
+      padding: 48px 16px;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 32px;
+    }
+
+    .eyebrow {
+      color: var(--amber);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin: 0 0 8px;
+    }
+
+    h1 {
+      font-size: clamp(1.75rem, 5vw, 2.5rem);
+      line-height: 1.15;
+      margin: 0 0 8px;
+    }
+
+    .lede { color: var(--muted); margin: 0; }
+
+    form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .req { color: var(--amber); text-decoration: none; cursor: help; }
+    .optional { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+
+    input, textarea {
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    textarea { resize: vertical; min-height: 96px; }
+
+    input::placeholder, textarea::placeholder { color: rgba(249, 244, 218, 0.35); }
+
+    /* Make the native date picker icon visible on dark bg */
+    input[type="date"] { color-scheme: dark; }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--amber);
+      box-shadow: 0 0 0 3px rgba(252, 186, 40, 0.25);
+    }
+
+    .field.is-valid input,
+    .field.is-valid textarea { border-color: var(--green); }
+    .field.is-valid input:focus,
+    .field.is-valid textarea:focus { box-shadow: 0 0 0 3px rgba(11, 169, 91, 0.25); }
+
+    .field.is-invalid input,
+    .field.is-invalid textarea { border-color: var(--pink); }
+    .field.is-invalid input:focus,
+    .field.is-invalid textarea:focus { box-shadow: 0 0 0 3px rgba(243, 139, 163, 0.25); }
+
+    .error {
+      display: block;
+      color: var(--pink);
+      font-size: 0.85rem;
+      min-height: 1.3em;
+      margin: 0;
+    }
+    .error:not(:empty)::before { content: "✕ "; font-weight: 700; }
+
+    .hint { display: block; color: var(--muted); font-size: 0.8rem; margin: 0; }
+
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin: 0;
+    }
+
+    button {
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 13px 28px;
+      background: var(--amber);
+      color: var(--bg);
+      transition: transform 0.1s, filter 0.15s;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: translateY(1px); }
+    button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+    button:disabled { opacity: 0.6; cursor: progress; transform: none; }
+
+    button[type="reset"] {
+      background: transparent;
+      color: var(--text);
+      box-shadow: inset 0 0 0 1.5px var(--border);
+    }
+    button[type="reset"]:hover {
+      filter: none;
+      box-shadow: inset 0 0 0 1.5px var(--amber);
+      color: var(--amber);
+    }
+
+    .form-status { color: var(--pink); font-size: 0.9rem; margin: 0; }
+
+    /* Confirmation card */
+    .confirmation {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--green);
+      border-radius: var(--radius);
+      padding: 28px;
+      animation: rise 0.35s ease-out;
+    }
+    .confirmation[hidden] { display: none; }
+
+    .confirmation h2 {
+      margin: 0 0 4px;
+      font-size: 1.35rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .confirmation h2::before {
+      content: "✓";
+      display: inline-grid;
+      place-items: center;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--green);
+      color: var(--bg);
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+    .confirmation .sub { color: var(--muted); margin: 0 0 20px; }
+
+    dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 12px 24px;
+    }
+    dt {
+      color: var(--amber);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding-top: 2px;
+    }
+    dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* Saved registrations */
+    .saved {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .saved h2 {
+      margin: 0 0 16px;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .saved h2:focus { outline: none; }
+    .saved-count {
+      color: var(--amber);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .saved-empty { color: var(--muted); margin: 0; font-style: italic; }
+    .saved-empty[hidden] { display: none; }
+
+    .saved ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .entry {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "name   delete"
+        "email  delete"
+        "meta   delete";
+      gap: 2px 16px;
+      align-items: center;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--amber);
+      border-radius: 8px;
+      animation: rise 0.25s ease-out;
+    }
+    .entry h3 { grid-area: name; margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+    .entry-email { grid-area: email; margin: 0; color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+    .entry-meta { grid-area: meta; margin: 0; font-size: 0.9rem; }
+    .entry-meta time { color: var(--amber); }
+
+    .entry button {
+      grid-area: delete;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      background: transparent;
+      color: var(--pink);
+      box-shadow: inset 0 0 0 1.5px rgba(243, 139, 163, 0.5);
+    }
+    .entry button:hover {
+      filter: none;
+      background: rgba(243, 139, 163, 0.12);
+      box-shadow: inset 0 0 0 1.5px var(--pink);
+    }
+
+    /* Handler flow panel */
+    .flow {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    /* <summary> is the show/hide toggle */
+    .flow summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      list-style: none;
+      border-radius: 8px;
+    }
+    .flow summary::-webkit-details-marker { display: none; }
+    .flow summary:focus-visible { outline: 3px solid var(--text); outline-offset: 4px; }
+    .flow h2 { margin: 0; font-size: 1.05rem; }
+
+    .flow summary::after {
+      content: "Show ▾";
+      flex-shrink: 0;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--amber);
+      padding: 6px 12px;
+      border-radius: 999px;
+      box-shadow: inset 0 0 0 1.5px rgba(252, 186, 40, 0.4);
+    }
+    .flow[open] summary::after { content: "Hide ▴"; }
+    .flow summary:hover::after { background: rgba(252, 186, 40, 0.12); }
+
+    .flow > p { color: var(--muted); font-size: 0.85rem; margin: 12px 0 16px; }
+
+    .flow ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "code   time"
+        "detail detail";
+      gap: 2px 8px;
+      padding: 8px 12px;
+      background: var(--surface-2);
+      border-left: 3px solid var(--border);
+      border-radius: 6px;
+      animation: rise 0.25s ease-out;
+    }
+    .step code {
+      grid-area: code;
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      /* Lines break at the <wbr> hints logStep() inserts; mid-word only as a last resort */
+      overflow-wrap: break-word;
+    }
+    /* Hanging indent: the ✓/✕ stays on the first line, wrapped lines align with the code */
+    .step.is-pass code,
+    .step.is-fail code { padding-left: 2ch; text-indent: -2ch; }
+    .step time {
+      grid-area: time;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .step small { grid-area: detail; color: var(--muted); font-size: 0.8rem; }
+
+    .step.is-idle { animation: none; }
+    .step.is-info { border-left-color: var(--amber); }
+    .step.is-info code { color: var(--amber); }
+    .step.is-pass { border-left-color: var(--green); }
+    .step.is-pass code::before { content: "✓ "; color: var(--green); }
+    .step.is-fail { border-left-color: var(--pink); }
+    .step.is-fail code::before { content: "✕ "; color: var(--pink); }
+    .step.is-fail small { color: var(--pink); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .confirmation, .step, .entry { animation: none; }
+    }
+
+    @media (max-width: 560px) {
+      body { padding: 32px 16px; }
+      form, .confirmation, .saved, .flow { padding: 20px; }
+      .entry {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "name" "email" "meta" "delete";
+      }
+      .entry button { justify-self: start; margin-top: 8px; }
+      /* Give the code the full row; the timestamp drops beside the detail line */
+      .step {
+        grid-template-areas:
+          "code   code"
+          "detail time";
+      }
+      .step time { align-self: end; }
+      form { grid-template-columns: 1fr; }
+      .actions button { flex: 1 1 0; }
+      .form-status { flex-basis: 100%; }
+      dl { grid-template-columns: 1fr; gap: 2px; }
+      dd { margin-bottom: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Registration</p>
+      <h1>Reserve your spot</h1>
+      <p class="lede">Fill in the details below. Fields marked <abbr class="req" title="required">*</abbr> are required.</p>
+    </header>
+
+    <form id="registration" novalidate>
+      <p class="field full">
+        <label for="fullName">Full name <abbr class="req" title="required">*</abbr></label>
+        <input id="fullName" name="fullName" type="text" autocomplete="name"
+               required minlength="2" maxlength="80"
+               aria-describedby="fullName-error" placeholder="Jane Doe">
+        <small class="error" id="fullName-error" aria-live="polite"></small>
+      </p>
+
+      <p class="field full">
+        <label for="email">Email <abbr class="req" title="required">*</abbr></label>
+        <input id="email" name="email" type="email" autocomplete="email"
+               required aria-describedby="email-error" placeholder="jane@example.com">
+        <small class="error" id="email-error" aria-live="polite"></small>
+      </p>
+
+      <p class="field">
+        <label for="eventDate">Event date <abbr class="req" title="required">*</abbr></label>
+        <input id="eventDate" name="eventDate" type="date" required
+               aria-describedby="eventDate-error">
+        <small class="error" id="eventDate-error" aria-live="polite"></small>
+      </p>
+
+      <p class="field">
+        <label for="guests">Number of guests <abbr class="req" title="required">*</abbr></label>
+        <input id="guests" name="guests" type="number" inputmode="numeric"
+               required min="1" max="10" step="1" value="1"
+               aria-describedby="guests-hint guests-error">
+        <small class="hint" id="guests-hint">1–10. Groups of 6+ must book 7 days ahead.</small>
+        <small class="error" id="guests-error" aria-live="polite"></small>
+      </p>
+
+      <p class="field full">
+        <label for="dietary">Dietary restrictions <small class="optional">(optional)</small></label>
+        <textarea id="dietary" name="dietary" maxlength="500"
+                  aria-describedby="dietary-error"
+                  placeholder="e.g. vegetarian, nut allergy"></textarea>
+        <small class="error" id="dietary-error" aria-live="polite"></small>
+      </p>
+
+      <p class="actions">
+        <button type="submit">Register</button>
+        <button type="reset">Reset</button>
+        <output class="form-status" id="form-status" for="fullName email eventDate guests dietary" role="status"></output>
+      </p>
+    </form>
+
+    <section class="confirmation" id="confirmation" hidden aria-live="polite">
+      <h2>You're registered!</h2>
+      <p class="sub">Here's a summary of your registration.</p>
+      <dl id="summary"></dl>
+    </section>
+
+    <section class="saved" aria-labelledby="saved-title">
+      <h2 id="saved-title" tabindex="-1">Saved registrations <small class="saved-count" id="saved-count"></small></h2>
+      <ul id="saved-list" aria-live="polite"></ul>
+      <p class="saved-empty" id="saved-empty">No registrations yet</p>
+    </section>
+
+    <details class="flow" open>
+      <summary><h2>Handler flow</h2></summary>
+      <p>Each step of the submit handler appears here as it runs.</p>
+      <ol id="flow-steps" aria-live="polite">
+        <li class="step is-idle"><small>Click <strong>Register</strong> to run the handler.</small></li>
+      </ol>
+    </details>
+  </main>
+
+  <script>
+    (() => {
+      const form = document.getElementById('registration');
+      const status = document.getElementById('form-status');
+      const card = document.getElementById('confirmation');
+      const summary = document.getElementById('summary');
+      const flowList = document.getElementById('flow-steps');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const resetBtn = form.querySelector('button[type="reset"]');
+      const savedList = document.getElementById('saved-list');
+      const savedEmpty = document.getElementById('saved-empty');
+      const savedCount = document.getElementById('saved-count');
+      const savedTitle = document.getElementById('saved-title');
+
+      const fields = {
+        fullName: form.elements.fullName,
+        email: form.elements.email,
+        eventDate: form.elements.eventDate,
+        guests: form.elements.guests,
+        dietary: form.elements.dietary,
+      };
+
+      const ALLOWED_TLDS = ['com', 'gov', 'edu', 'org', 'mil'];
+      const LARGE_GROUP = 6;
+      const LARGE_GROUP_LEAD_DAYS = 7;
+      const STORAGE_KEY = 'registrations';
+
+      // Local-date helpers (avoid UTC shifting from new Date('YYYY-MM-DD'))
+      const todayLocal = () => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+      const parseLocalDate = (value) => {
+        const [y, m, d] = value.split('-').map(Number);
+        return new Date(y, m - 1, d);
+      };
+      const toISO = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const daysBetween = (a, b) => Math.round((b - a) / 86400000);
+
+      // Constrain the date picker: today through one year out
+      const today = todayLocal();
+      const maxDate = new Date(today);
+      maxDate.setFullYear(maxDate.getFullYear() + 1);
+      fields.eventDate.min = toISO(today);
+      fields.eventDate.max = toISO(maxDate);
+
+      // Each validator returns an error message, or '' if valid.
+      // HTML constraint validity (required, type=email, min/max) is read
+      // via el.validity, then translated into custom messages.
+      const validators = {
+        fullName(el) {
+          const v = el.value.trim();
+          if (el.validity.valueMissing || v === '') return 'Please enter your full name.';
+          if (v.length < 2) return 'Name must be at least 2 characters.';
+          if (!/[A-Za-zÀ-ÿ]/.test(v)) return 'Name must contain letters.';
+          return '';
+        },
+
+        email(el) {
+          const v = el.value.trim();
+          if (el.validity.valueMissing || v === '') return 'Please enter your email address.';
+          // Native type=email is permissive (allows "a@b"), so require a
+          // dotted domain too, then restrict the ending to an allowlist.
+          if (el.validity.typeMismatch || !/^[^\s@]+@([a-z0-9-]+\.)+[a-z]{2,}$/i.test(v)) {
+            return 'Enter a valid email, like name@example.com.';
+          }
+          const tld = v.split('.').pop().toLowerCase();
+          if (!ALLOWED_TLDS.includes(tld)) {
+            return 'Email must end in .com, .gov, .edu, .org, or .mil.';
+          }
+          return '';
+        },
+
+        eventDate(el) {
+          if (el.validity.badInput) return 'Enter a complete, valid date.';
+          if (el.validity.valueMissing || !el.value) return 'Please choose an event date.';
+          const date = parseLocalDate(el.value);
+          if (date < todayLocal()) return 'Event date can’t be in the past.';
+          if (date > maxDate) return 'Registration opens at most one year ahead.';
+          return '';
+        },
+
+        guests(el) {
+          if (el.validity.badInput) return 'Enter a whole number.';
+          if (el.validity.valueMissing || el.value === '') return 'Please enter the number of guests.';
+          const n = Number(el.value);
+          if (!Number.isInteger(n)) return 'Guests must be a whole number.';
+          if (n < 1) return 'At least 1 guest is required.';
+          if (n > 10) return 'Maximum of 10 guests per registration.';
+
+          // Cross-field check: large groups need advance notice
+          if (n >= LARGE_GROUP && fields.eventDate.value && !validators.eventDate(fields.eventDate)) {
+            const lead = daysBetween(todayLocal(), parseLocalDate(fields.eventDate.value));
+            if (lead < LARGE_GROUP_LEAD_DAYS) {
+              return `Groups of ${LARGE_GROUP}+ must register at least ${LARGE_GROUP_LEAD_DAYS} days before the event (yours is in ${lead} day${lead === 1 ? '' : 's'}).`;
+            }
+          }
+          return '';
+        },
+
+        dietary(el) {
+          if (el.value.length > 500) return 'Please keep this under 500 characters.';
+          return '';
+        },
+      };
+
+      const touched = new Set();
+
+      function validateField(name) {
+        const el = fields[name];
+        const field = el.closest('.field');
+        const errorEl = document.getElementById(`${name}-error`);
+        const message = validators[name](el);
+
+        errorEl.textContent = message;
+        el.setAttribute('aria-invalid', message ? 'true' : 'false');
+        field.classList.toggle('is-invalid', !!message);
+        // Only show green on optional fields if they have content
+        const showValid = !message && (name !== 'dietary' || el.value.trim() !== '');
+        field.classList.toggle('is-valid', showValid);
+        return !message;
+      }
+
+      // Live feedback once a field has been visited
+      Object.keys(fields).forEach((name) => {
+        const el = fields[name];
+        el.addEventListener('blur', () => {
+          touched.add(name);
+          validateField(name);
+        });
+        el.addEventListener('input', () => {
+          if (touched.has(name)) validateField(name);
+          // Date and guests depend on each other — re-check the partner
+          if (name === 'eventDate' && touched.has('guests')) validateField('guests');
+          status.textContent = '';
+        });
+      });
+
+      // ---- localStorage persistence ----
+      // Storage can be missing, full, or blocked (private mode), and the saved
+      // JSON could be corrupt — so every read/write is guarded.
+      function loadRegistrations() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveRegistrations(list) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      const makeId = () =>
+        (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+
+      const formatDate = (iso, style = 'long') =>
+        parseLocalDate(iso).toLocaleDateString(navigator.language, style === 'long'
+          ? { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+          : { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+
+      const guestLabel = (n) => `${n} ${Number(n) === 1 ? 'guest' : 'guests'}`;
+
+      function renderRegistrations() {
+        const list = loadRegistrations();
+        savedEmpty.hidden = list.length > 0;
+        savedCount.textContent = list.length ? `(${list.length})` : '';
+
+        // Newest first; built with textContent so saved input is never parsed as HTML
+        savedList.replaceChildren(...list.slice().reverse().map((entry) => {
+          const li = document.createElement('li');
+          const name = document.createElement('h3');
+          const email = document.createElement('p');
+          const meta = document.createElement('p');
+          const time = document.createElement('time');
+          const del = document.createElement('button');
+
+          li.className = 'entry';
+          li.dataset.id = entry.id;
+          name.textContent = entry.fullName;
+          email.className = 'entry-email';
+          email.textContent = entry.email;
+          meta.className = 'entry-meta';
+          time.dateTime = entry.eventDate;
+          time.textContent = formatDate(entry.eventDate, 'short');
+          meta.append(time, ` · ${guestLabel(entry.guests)}`);
+          del.type = 'button';
+          del.textContent = 'Delete';
+          del.setAttribute('aria-label', `Delete registration for ${entry.fullName}`);
+
+          li.append(name, email, meta, del);
+          return li;
+        }));
+      }
+
+      function deleteRegistration(id) {
+        const list = loadRegistrations();
+        const removed = list.find((r) => r.id === id);
+        const ok = saveRegistrations(list.filter((r) => r.id !== id));
+        renderRegistrations();
+        return { ok, removed };
+      }
+
+      // One delegated listener handles every Delete button, including future ones
+      savedList.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const li = btn.closest('.entry');
+        const items = [...savedList.children];
+        const index = items.indexOf(li);
+
+        const { ok, removed } = deleteRegistration(li.dataset.id);
+
+        flowStart = performance.now();
+        flowList.replaceChildren();
+        logStep(
+          "Delete 'click' event",
+          ok ? `Removed ${removed ? removed.fullName : 'entry'} from localStorage; list re-rendered`
+             : 'Could not write to localStorage — entry not removed',
+          ok ? 'pass' : 'fail'
+        );
+
+        // Keep keyboard focus in the list: next entry's Delete, else previous, else the heading
+        const remaining = savedList.querySelectorAll('.entry button');
+        (remaining[Math.min(index, remaining.length - 1)] || savedTitle).focus();
+      });
+
+      // ---- Handler flow log ----
+      const STEP_DELAY = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 300;
+      const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      let flowStart = 0;
+      let running = false;
+
+      // state: 'info' | 'pass' | 'fail'
+      function logStep(code, detail, state) {
+        const elapsed = Math.round(performance.now() - flowStart);
+        const li = document.createElement('li');
+        const codeEl = document.createElement('code');
+        const timeEl = document.createElement('time');
+        const detailEl = document.createElement('small');
+
+        li.className = `step is-${state}`;
+        // Allow line breaks after . ( , so long calls wrap at readable points
+        code.split(/(?<=[.(,])/).forEach((part, i) => {
+          if (i) codeEl.append(document.createElement('wbr'));
+          codeEl.append(part);
+        });
+        timeEl.dateTime = `PT${(elapsed / 1000).toFixed(3)}S`;
+        timeEl.textContent = `+${elapsed}ms`;
+        detailEl.textContent = detail;
+
+        li.append(codeEl, timeEl, detailEl);
+        flowList.append(li);
+        flowList.scrollTop = flowList.scrollHeight;
+      }
+
+      form.addEventListener('submit', async (e) => {
+        // Must run synchronously, before any await
+        e.preventDefault();
+        if (running) return;
+
+        running = true;
+        submitBtn.disabled = true;
+        resetBtn.disabled = true;
+        flowStart = performance.now();
+        flowList.replaceChildren();
+        card.hidden = true;
+        status.textContent = '';
+
+        logStep("form 'submit' event", 'Register clicked — handler invoked', 'info');
+        await wait(STEP_DELAY);
+        logStep('e.preventDefault()', 'Default browser submission blocked; JS takes over', 'info');
+
+        const invalid = [];
+        for (const name of Object.keys(fields)) {
+          await wait(STEP_DELAY);
+          touched.add(name);
+          const ok = validateField(name);
+          if (!ok) invalid.push(name);
+
+          const passDetail = name === 'guests'
+            ? 'Valid — in range 1–10 and passed the date lead-time cross-check'
+            : 'Valid';
+          const failDetail = document.getElementById(`${name}-error`).textContent;
+          logStep(`validateField('${name}')`, ok ? passDetail : failDetail, ok ? 'pass' : 'fail');
+        }
+
+        await wait(STEP_DELAY);
+        if (invalid.length) {
+          status.textContent = `Please fix ${invalid.length} field${invalid.length > 1 ? 's' : ''} above.`;
+          fields[invalid[0]].focus();
+          logStep(
+            `${fields[invalid[0]].id}.focus()`,
+            `${invalid.length} invalid — handler stopped, focus moved to first error`,
+            'fail'
+          );
+        } else {
+          renderConfirmation();
+          logStep('renderConfirmation()', 'All fields valid — confirmation card rendered', 'pass');
+
+          await wait(STEP_DELAY);
+          const list = loadRegistrations();
+          list.push({
+            id: makeId(),
+            fullName: fields.fullName.value.trim(),
+            email: fields.email.value.trim(),
+            eventDate: fields.eventDate.value,
+            guests: Number(fields.guests.value),
+            dietary: fields.dietary.value.trim(),
+            savedAt: new Date().toISOString(),
+          });
+          const saved = saveRegistrations(list);
+          logStep(
+            `localStorage.setItem('${STORAGE_KEY}', JSON.stringify(…))`,
+            saved ? `Saved — ${list.length} registration${list.length === 1 ? '' : 's'} stored`
+                  : 'Could not write to localStorage (blocked or full) — entry not saved',
+            saved ? 'pass' : 'fail'
+          );
+
+          await wait(STEP_DELAY);
+          renderRegistrations();
+          logStep('renderRegistrations()', 'Saved list re-rendered from localStorage', 'info');
+        }
+
+        running = false;
+        submitBtn.disabled = false;
+        resetBtn.disabled = false;
+      });
+
+      // Native reset restores each field's default value (guests → 1);
+      // this clears everything the JS added on top.
+      form.addEventListener('reset', () => {
+        if (running) return;
+        touched.clear();
+        Object.keys(fields).forEach((name) => {
+          const el = fields[name];
+          el.removeAttribute('aria-invalid');
+          el.closest('.field').classList.remove('is-valid', 'is-invalid');
+          document.getElementById(`${name}-error`).textContent = '';
+        });
+        status.textContent = '';
+        card.hidden = true;
+        summary.replaceChildren();
+
+        flowStart = performance.now();
+        flowList.replaceChildren();
+        logStep("form 'reset' event", 'Fields cleared, errors removed, confirmation card hidden', 'info');
+
+        fields.fullName.focus();
+      });
+
+      // On page load: read saved registrations and render them
+      renderRegistrations();
+
+      function renderConfirmation() {
+        const rows = [
+          ['Name', fields.fullName.value.trim()],
+          ['Email', fields.email.value.trim()],
+          ['Event date', formatDate(fields.eventDate.value)],
+          ['Guests', guestLabel(fields.guests.value)],
+          ['Dietary', fields.dietary.value.trim() || 'None specified'],
+        ];
+
+        // Build with textContent — never inject user input as HTML
+        summary.replaceChildren(...rows.flatMap(([label, value]) => {
+          const dt = document.createElement('dt');
+          const dd = document.createElement('dd');
+          dt.textContent = label;
+          dd.textContent = value;
+          return [dt, dd];
+        }));
+
+        card.hidden = false;
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    })();
+  </script>
+</body>
+</html>
