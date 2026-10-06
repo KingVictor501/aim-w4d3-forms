@@ -655,7 +655,7 @@
         savedCount.textContent = list.length ? `(${list.length})` : '';
 
         // Newest first; built with textContent so saved input is never parsed as HTML
-        savedList.replaceChildren(...list.slice().reverse().map((entry) => {
+        savedList.replaceChildren(...list.slice().reverse().map((entry, position) => {
           const li = document.createElement('li');
           const name = document.createElement('h3');
           const email = document.createElement('p');
@@ -675,6 +675,9 @@
           del.type = 'button';
           del.textContent = 'Delete';
           del.setAttribute('aria-label', `Delete registration for ${entry.fullName}`);
+          // Each button gets its own listener, so the handler already knows
+          // which entry (by id) and which place in the list (for focus)
+          del.addEventListener('click', () => onDeleteClick(entry.id, position));
 
           li.append(name, email, meta, del);
           return li;
@@ -683,35 +686,34 @@
 
       function deleteRegistration(id) {
         const list = loadRegistrations();
-        const removed = list.find((r) => r.id === id);
+        // filter() always returns an array (empty if no match), unlike find()
+        const matches = list.filter((r) => r.id === id);
+        const removedName = matches.length > 0 ? matches[0].fullName : 'entry';
         const ok = saveRegistrations(list.filter((r) => r.id !== id));
         renderRegistrations();
-        return { ok, removed };
+        return { ok, removedName };
       }
 
-      // One delegated listener handles every Delete button, including future ones
-      savedList.addEventListener('click', (e) => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        const li = btn.closest('.entry');
-        const items = [...savedList.children];
-        const index = items.indexOf(li);
-
-        const { ok, removed } = deleteRegistration(li.dataset.id);
+      function onDeleteClick(id, position) {
+        const { ok, removedName } = deleteRegistration(id);
 
         flowStart = performance.now();
         flowList.replaceChildren();
         logStep(
           "Delete 'click' event",
-          ok ? `Removed ${removed ? removed.fullName : 'entry'} from localStorage; list re-rendered`
+          ok ? `Removed ${removedName} from localStorage; list re-rendered`
              : 'Could not write to localStorage — entry not removed',
           ok ? 'pass' : 'fail'
         );
 
         // Keep keyboard focus in the list: next entry's Delete, else previous, else the heading
         const remaining = savedList.querySelectorAll('.entry button');
-        (remaining[Math.min(index, remaining.length - 1)] || savedTitle).focus();
-      });
+        if (remaining.length > 0) {
+          remaining[Math.min(position, remaining.length - 1)].focus();
+        } else {
+          savedTitle.focus();
+        }
+      }
 
       // ---- Handler flow log ----
       const STEP_DELAY = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 300;
