@@ -611,10 +611,20 @@
       // ---- localStorage persistence ----
       // Storage can be missing, full, or blocked (private mode), and the saved
       // JSON could be corrupt — so every read/write is guarded.
+      // Skip entries that were hand-edited into a shape the list can't render
+      // (missing id/name/email, bad date, non-numeric guests)
+      const isValidEntry = (r) =>
+        typeof r === 'object' && !!r &&
+        typeof r.id === 'string' && r.id !== '' &&
+        typeof r.fullName === 'string' &&
+        typeof r.email === 'string' &&
+        typeof r.eventDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.eventDate) &&
+        Number.isFinite(Number(r.guests));
+
       function loadRegistrations() {
         try {
           const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-          return Array.isArray(parsed) ? parsed : [];
+          return Array.isArray(parsed) ? parsed.filter(isValidEntry) : [];
         } catch {
           return [];
         }
